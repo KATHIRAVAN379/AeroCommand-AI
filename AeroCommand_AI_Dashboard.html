@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AeroCommand AI Dashboard</title>
+
+  <!-- Leaflet Map Library -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      background: #000010;
+      font-family: 'Orbitron', sans-serif;
+      color: #e0e0ff;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .dashboard-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .left-panel {
+      width: 35%;
+      padding: 20px;
+      overflow-y: auto;
+      background: radial-gradient(circle at top left, #050518, #000010);
+      border-right: 2px solid #00ffff55;
+    }
+
+    .right-panel {
+      width: 65%;
+      position: relative;
+    }
+
+    h1.neon-title {
+      color: #00ffff;
+      text-shadow: 0 0 10px #00ffff, 0 0 30px #0088ff;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .card {
+      background: rgba(10, 10, 20, 0.7);
+      border: 1px solid #00ffff44;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      box-shadow: 0 0 20px #00ffffaa;
+      transform: scale(1.01);
+    }
+
+    .card h3 { color: #00ffff; }
+    .card input {
+      width: 95%;
+      background: rgba(0,0,20,0.8);
+      border: 1px solid #00ffff55;
+      border-radius: 6px;
+      color: #fff;
+      margin: 6px 0;
+      padding: 8px;
+      font-size: 14px;
+    }
+    .card button {
+      background: #00ffff22;
+      color: #00ffff;
+      border: 1px solid #00ffff55;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .card button:hover { background: #00ffff55; color: #000; }
+    .card h4 { margin-top: 10px; color: #00ff88; }
+
+    #map {
+      height: 100%;
+      width: 100%;
+      border: 2px solid #00ffff88;
+      border-radius: 12px;
+    }
+
+    .console-box {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      width: 95%;
+      height: 120px;
+      background: rgba(5,5,15,0.9);
+      overflow-y: auto;
+      color: #00ff99;
+      font-size: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #00ff9988;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <div class="left-panel">
+      <h1 class="neon-title">🧠 AeroCommand AI Dashboard</h1>
+
+      <div class="card">
+        <h3>Flight Delay Risk</h3>
+        <input id="dep_hour" placeholder="Departure Hour">
+        <input id="distance" placeholder="Distance (km)">
+        <button onclick="predictDelay()">Predict</button>
+        <h4 id="delay-result">--</h4>
+      </div>
+
+      <div class="card">
+        <h3>Passenger Satisfaction</h3>
+        <input id="duration" placeholder="Flight Duration (hrs)">
+        <input id="rating" placeholder="Service Rating (1-5)">
+        <button onclick="predictSatisfaction()">Predict</button>
+        <h4 id="satisfaction-result">--</h4>
+      </div>
+
+      <div class="card">
+        <h3>Passenger Demand Forecast</h3>
+        <input id="year" placeholder="Year">
+        <input id="month" placeholder="Month">
+        <input id="previous" placeholder="Prev. Passengers">
+        <button onclick="predictDemand()">Predict</button>
+        <h4 id="demand-result">--</h4>
+      </div>
+
+      <div class="card">
+        <h3>✈️ Flight Route Tracker</h3>
+        <input id="origin" placeholder="Origin (e.g. DEL)">
+        <input id="destination" placeholder="Destination (e.g. MAA)">
+        <button onclick="trackRoute()">Track Route</button>
+        <h4 id="route-result">--</h4>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div id="map"></div>
+      <div id="log-console" class="console-box"></div>
+    </div>
+  </div>
+
+  <script>
+    var map = L.map('map').setView([20.5937, 78.9629], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    function log(msg) {
+      const logBox = document.getElementById("log-console");
+      logBox.innerHTML += `> ${msg}<br>`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    async function predictDelay() {
+      const dep_hour = parseFloat(document.getElementById("dep_hour").value);
+      const distance = parseFloat(document.getElementById("distance").value);
+      const res = await fetch('/predict_delay', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ dep_hour, distance })
+      });
+      const data = await res.json();
+      document.getElementById("delay-result").innerText = data.prediction ? "⚠️ Delayed" : "✅ On-Time";
+      log("Delay prediction executed.");
+    }
+
+    async function predictSatisfaction() {
+      const duration = parseFloat(document.getElementById("duration").value);
+      const rating = parseFloat(document.getElementById("rating").value);
+      const res = await fetch('/predict_satisfaction', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ duration, rating })
+      });
+      const data = await res.json();
+      document.getElementById("satisfaction-result").innerText = data.prediction ? "😊 Satisfied" : "😕 Dissatisfied";
+      log("Satisfaction prediction executed.");
+    }
+
+    async function predictDemand() {
+      const year = parseInt(document.getElementById("year").value);
+      const month = parseInt(document.getElementById("month").value);
+      const previous_passengers = parseFloat(document.getElementById("previous").value);
+      const res = await fetch('/predict_demand', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ year, month, previous_passengers })
+      });
+      const data = await res.json();
+      document.getElementById("demand-result").innerText = data.prediction;
+      log("Demand forecast executed.");
+    }
+
+    async function trackRoute() {
+      const origin = document.getElementById("origin").value.trim();
+      const destination = document.getElementById("destination").value.trim();
+      const res = await fetch('/get_flight_route', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin, destination })
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        document.getElementById("route-result").innerText = "❌ Invalid route";
+        log(data.error);
+        return;
+      }
+
+      document.getElementById("route-result").innerText = `${data.origin.code} ➜ ${data.destination.code}`;
+
+      const o = data.origin.coords;
+      const d = data.destination.coords;
+
+      const routeLine = L.polyline([o, d], { color: '#00ffff', weight: 3 }).addTo(map);
+      L.marker(o).addTo(map).bindPopup(`Origin: ${data.origin.code}`);
+      L.marker(d).addTo(map).bindPopup(`Destination: ${data.destination.code}`);
+      map.fitBounds(routeLine.getBounds());
+
+      log(`Route plotted: ${data.origin.code} → ${data.destination.code}`);
+    }
+  </script>
+</body>
+</html>
